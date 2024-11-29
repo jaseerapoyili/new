@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gate Controls</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('portal-classic-sliding-steel-aluminum-grey-metal-gate-slide-door-home-garden-house_100800-23486.jpg');
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .gate-box {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 20px;
+            width: 200px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .gate-box h3 {
+            margin: 0 0 10px;
+            font-size: 18px;
+            color: #333;
+        }
+        .gate-btn {
+            padding: 10px 20px;
+            margin: 10px 0;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease-in-out;
+        }
+        .gate-btn.open {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .gate-btn.open[disabled] {
+            background-color: #a5d6a7;
+            cursor: not-allowed;
+        }
+        .gate-btn.close {
+            background-color: #f44336;
+            color: white;
+        }
+        .gate-btn.close:hover {
+            background-color: #d32f2f;
+        }
+        .progress-display, .time-display {
+            font-size: 14px;
+            margin-top: 5px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Left Gate Box -->
+        <div class="gate-box">
+            <h3>Left Gate</h3>
+            <button id="open-left-gate" class="gate-btn open">Open</button>
+            <button id="close-left-gate" class="gate-btn close">Close</button>
+            <div id="left-gate-progress" class="progress-display">Progress: 0%</div>
+            <div id="left-gate-time" class="time-display">Time: 0.0s</div>
+        </div>
+        <!-- Both Gates Box -->
+        <div class="gate-box">
+            <h3>Both Gates</h3>
+            <button id="open-both-gates" class="gate-btn open">Open</button>
+            <button id="close-both-gates" class="gate-btn close">Close</button>
+            <div id="both-gates-progress" class="progress-display">Progress: 0%</div>
+            <div id="both-gates-time" class="time-display">Time: 0.0s</div>
+        </div>
+        <!-- Right Gate Box -->
+        <div class="gate-box">
+            <h3>Right Gate</h3>
+            <button id="open-right-gate" class="gate-btn open">Open</button>
+            <button id="close-right-gate" class="gate-btn close">Close</button>
+            <div id="right-gate-progress" class="progress-display">Progress: 0%</div>
+            <div id="right-gate-time" class="time-display">Time: 0.0s</div>
+        </div>
+    </div>
+
+<script>
+    const gateData = {
+        'left-gate': { progress: 0, totalTime: 0, timer: null, startTime: null },
+        'both-gates': { progress: 0, totalTime: 0, timer: null, startTime: null },
+        'right-gate': { progress: 0, totalTime: 0, timer: null, startTime: null }
+    };
+
+    const TOTAL_TIME = 6000; // 6 seconds to reach 100%
+    const UPDATE_INTERVAL = 50; // Update every 50ms
+
+    function sendDataToServer(gateId) {
+        fetch('https://your-server-url.com/gate-control', { // Replace with your actual server URL
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ gate: gateId, value: 1 }),
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log(`Server response for ${gateId}:`, data);
+        })
+        .catch(error => {
+            console.error(`Error sending data for ${gateId}:`, error);
+        });
+    }
+
+    function startOpening(gateId) {
+        const data = gateData[gateId];
+        if (!data.startTime) data.startTime = Date.now();
+
+        // Send data to the server when the button is pressed
+        sendDataToServer(gateId);
+
+        data.timer = setInterval(() => {
+            const now = Date.now();
+            const elapsed = now - data.startTime;
+
+            if (data.progress < 100) {
+                data.progress += (elapsed / TOTAL_TIME) * 100;
+                data.totalTime += elapsed / 1000;
+                if (data.progress >= 100) {
+                    data.progress = 100;
+                    document.getElementById(`open-${gateId}`).disabled = true;
+                    alert(`${gateId.replace(/-/g, ' ')} fully opened.`);
+                }
+
+                // Update progress and time
+                document.getElementById(`${gateId}-progress`).textContent = `Progress: ${Math.round(data.progress)}%`;
+                document.getElementById(`${gateId}-time`).textContent = `Time: ${data.totalTime.toFixed(1)}s`;
+            }
+
+            data.startTime = now; // Reset start time
+        }, UPDATE_INTERVAL);
+    }
+
+    function stopOpening(gateId) {
+        const data = gateData[gateId];
+        clearInterval(data.timer);
+
+        if (data.startTime) {
+            const elapsed = Date.now() - data.startTime;
+            data.totalTime += elapsed / 1000;
+            data.progress += (elapsed / TOTAL_TIME) * 100;
+
+            if (data.progress >= 100) {
+                data.progress = 100;
+                document.getElementById(`open-${gateId}`).disabled = true;
+            }
+
+            // Update progress and time
+            document.getElementById(`${gateId}-progress`).textContent = `Progress: ${Math.round(data.progress)}%`;
+            document.getElementById(`${gateId}-time`).textContent = `Time: ${data.totalTime.toFixed(1)}s`;
+
+            data.startTime = null;
+        }
+    }
+
+    function resetGate(gateId) {
+        const data = gateData[gateId];
+        clearInterval(data.timer); // Stop any ongoing timer
+
+        // Reset data
+        data.progress = 0;
+        data.totalTime = 0;
+        data.startTime = null;
+
+        // Reset display
+        document.getElementById(`${gateId}-progress`).textContent = 'Progress: 0%';
+        document.getElementById(`${gateId}-time`).textContent = 'Time: 0.0s';
+        document.getElementById(`open-${gateId}`).disabled = false; // Re-enable the Open button
+    }
+
+    ['left-gate', 'both-gates', 'right-gate'].forEach((gateId) => {
+        const openButton = document.getElementById(`open-${gateId}`);
+        const closeButton = document.getElementById(`close-${gateId}`);
+
+        // Open button long press
+        openButton.addEventListener('mousedown', () => {
+            if (!openButton.disabled) startOpening(gateId);
+        });
+        openButton.addEventListener('mouseup', () => {
+            if (!openButton.disabled) stopOpening(gateId);
+        });
+        openButton.addEventListener('mouseleave', () => {
+            if (!openButton.disabled) stopOpening(gateId);
+        });
+
+        // Close button click
+        closeButton.addEventListener('click', () => {
+            resetGate(gateId);
+            alert(`${gateId.replace(/-/g, ' ')} progress and time reset.`);
+        });
+    });
+</script>
+</body>
+</html>
